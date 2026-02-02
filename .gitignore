@@ -1,47 +1,124 @@
+# AlfredX .gitignore
+
 # Virtual Environment
 venv/
 env/
 .venv/
+ENV/
 
 # Python cache
 __pycache__/
 *.py[cod]
 *$py.class
 *.pyo
+.Python
 
-# Vosk Model (too large for GitHub)
-model/
+# Vosk Models (too large for GitHub - download separately)
+model-en/
+model-tr/
+
+# Environment variables (NEVER commit!)
+.env
+*.env
+.env.local
+.env.*.local
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# API Keys (NEVER upload these!)
-.env
-config/secrets.py
-*.key
+*.sublime-*
+.spyderproject
+.spyproject
 
 # Logs
 *.log
 logs/
+*.log.*
 
 # Audio files
 *.wav
 *.mp3
+*.ogg
+*.m4a
+
+# Screenshots
+screenshots/
+*.png
+*.jpg
+*.jpeg
+!assets/icons/*.png
+!assets/images/*.png
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
 
 # OS files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 desktop.ini
 
-# Build files
+# Build/Distribution
 build/
 dist/
 *.egg-info/
+*.egg
+*.manifest
+*.spec
+MANIFEST
 
+# PyInstaller
+*.manifest
+*.spec
 
-# Vosk Models (too large for GitHub)
-model-en/
-model-tr/
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# Data directory (user-specific)
+data/
+!data/.gitkeep
+
+# Secrets
+secrets/
+*.key
+*.pem
