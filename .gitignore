@@ -1,0 +1,42 @@
+# Virtual Environment
+venv/
+env/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Vosk Model (too large for GitHub)
+model/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# API Keys (NEVER upload these!)
+.env
+config/secrets.py
+*.key
+
+# Logs
+*.log
+logs/
+
+# Audio files
+*.wav
+*.mp3
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build files
+build/
+dist/
+*.egg-info/
