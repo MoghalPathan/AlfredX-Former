@@ -40,3 +40,8 @@ desktop.ini
 build/
 dist/
 *.egg-info/
+
+
+# Vosk Models (too large for GitHub)
+model-en/
+model-tr/
