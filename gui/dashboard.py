@@ -66,8 +66,16 @@ class Dashboard(QWidget):
         # AI Core
         core_panel = HUDPanel(title="AI CORE STATUS")
         self._core = RotatingCore(size=200)
-        core_panel.addWidget(self._core)
-
+        
+        # Create a container for centering
+        core_container = QWidget()
+        core_layout = QHBoxLayout(core_container)
+        core_layout.setContentsMargins(0, 0, 0, 0)
+        core_layout.addStretch()
+        core_layout.addWidget(self._core)
+        core_layout.addStretch()
+        
+        core_panel.addWidget(core_container)
         layout.addWidget(core_panel)
         
         # System Performance
@@ -304,7 +312,7 @@ class Dashboard(QWidget):
             
             cpu = psutil.cpu_percent()
             ram = psutil.virtual_memory().percent
-            disk = psutil.disk_usage('/').percent
+            disk = psutil.disk_usage('/').percent if os.name != 'nt' else psutil.disk_usage('C:\\').percent
             
             self._cpu_gauge.setValue(cpu)
             self._ram_gauge.setValue(ram)
@@ -399,3 +407,7 @@ class Dashboard(QWidget):
     def set_language(self, language: str):
         """Set the current language."""
         self._language = language
+
+
+# Need to import os for disk usage
+import os

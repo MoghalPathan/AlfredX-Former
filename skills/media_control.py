@@ -9,13 +9,14 @@ import os
 from typing import Tuple
 
 # Windows volume control
+PYCAW_AVAILABLE = False
 try:
     from ctypes import cast, POINTER
     from comtypes import CLSCTX_ALL
     from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
     PYCAW_AVAILABLE = True
 except ImportError:
-    PYCAW_AVAILABLE = False
+    print("⚠️ pycaw not available - volume control disabled")
 
 
 class MediaControl:
@@ -31,15 +32,39 @@ class MediaControl:
     
     def _init_volume_control(self):
         """Initialize Windows volume control."""
-        if PYCAW_AVAILABLE and os.name == 'nt':
+        if not PYCAW_AVAILABLE:
+            print("⚠️ Volume control not available (pycaw not installed)")
+            return
+            
+        if os.name != 'nt':
+            print("⚠️ Volume control only available on Windows")
+            return
+            
+        try:
+            # Get default audio device
+            devices = AudioUtilities.GetSpeakers()
+            
+            # Try the new API first
             try:
-                devices = AudioUtilities.GetSpeakers()
                 interface = devices.Activate(
-                    IAudioEndpointVolume._iid_, CLSCTX_ALL, None
+                    IAudioEndpointVolume._iid_, 
+                    CLSCTX_ALL, 
+                    None
                 )
                 self._volume_interface = cast(interface, POINTER(IAudioEndpointVolume))
-            except Exception as e:
-                print(f"Volume control init failed: {e}")
+                print("✅ Volume control initialized")
+            except AttributeError:
+                # Fallback for older pycaw versions
+                try:
+                    from pycaw.pycaw import ISimpleAudioVolume
+                    sessions = AudioUtilities.GetAllSessions()
+                    print("⚠️ Using fallback volume control")
+                except:
+                    print("⚠️ Volume control fallback failed")
+                    
+        except Exception as e:
+            print(f"⚠️ Volume control init failed: {e}")
+            self._volume_interface = None
     
     def get_volume(self) -> int:
         """
@@ -52,8 +77,8 @@ class MediaControl:
             try:
                 level = self._volume_interface.GetMasterVolumeLevelScalar()
                 return int(level * 100)
-            except:
-                pass
+            except Exception as e:
+                print(f"Get volume error: {e}")
         return 50  # Default
     
     def set_volume(self, level: int) -> Tuple[bool, str]:
@@ -75,6 +100,19 @@ class MediaControl:
             except Exception as e:
                 return False, f"Failed to set volume: {str(e)}"
         
+        # Fallback: use nircmd or PowerShell on Windows
+        if os.name == 'nt':
+            try:
+                # PowerShell fallback
+                ps_command = f'''
+                $obj = new-object -com wscript.shell
+                $obj.SendKeys([char]173)
+                '''
+                # This is limited, so just report unavailable
+                return False, "Volume control not available. Please adjust manually."
+            except:
+                pass
+        
         return False, "Volume control not available"
     
     def volume_up(self, step: int = 10) -> Tuple[bool, str]:
@@ -84,8 +122,18 @@ class MediaControl:
         Args:
             step: Amount to increase
         """
-        current = self.get_volume()
-        return self.set_volume(current + step)
+        if self._volume_interface:
+            current = self.get_volume()
+            return self.set_volume(current + step)
+        
+        # Fallback: use keyboard media key
+        try:
+            import pyautogui
+            pyautogui.press('volumeup')
+            pyautogui.press('volumeup')
+            return True, "Volume increased"
+        except Exception as e:
+            return False, f"Failed to increase volume: {e}"
     
     def volume_down(self, step: int = 10) -> Tuple[bool, str]:
         """
@@ -94,8 +142,18 @@ class MediaControl:
         Args:
             step: Amount to decrease
         """
-        current = self.get_volume()
-        return self.set_volume(current - step)
+        if self._volume_interface:
+            current = self.get_volume()
+            return self.set_volume(current - step)
+        
+        # Fallback: use keyboard media key
+        try:
+            import pyautogui
+            pyautogui.press('volumedown')
+            pyautogui.press('volumedown')
+            return True, "Volume decreased"
+        except Exception as e:
+            return False, f"Failed to decrease volume: {e}"
     
     def mute(self) -> Tuple[bool, str]:
         """Mute audio."""
@@ -104,8 +162,15 @@ class MediaControl:
                 self._volume_interface.SetMute(1, None)
                 return True, "Audio muted"
             except Exception as e:
-                return False, f"Failed to mute: {str(e)}"
-        return False, "Volume control not available"
+                pass
+        
+        # Fallback: use keyboard
+        try:
+            import pyautogui
+            pyautogui.press('volumemute')
+            return True, "Audio muted"
+        except Exception as e:
+            return False, f"Failed to mute: {str(e)}"
     
     def unmute(self) -> Tuple[bool, str]:
         """Unmute audio."""
@@ -114,8 +179,15 @@ class MediaControl:
                 self._volume_interface.SetMute(0, None)
                 return True, "Audio unmuted"
             except Exception as e:
-                return False, f"Failed to unmute: {str(e)}"
-        return False, "Volume control not available"
+                pass
+        
+        # Fallback: use keyboard
+        try:
+            import pyautogui
+            pyautogui.press('volumemute')
+            return True, "Audio unmuted"
+        except Exception as e:
+            return False, f"Failed to unmute: {str(e)}"
     
     def is_muted(self) -> bool:
         """Check if audio is muted."""

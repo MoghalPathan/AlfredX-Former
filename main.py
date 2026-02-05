@@ -2,31 +2,22 @@
 AlfredX: Waynecore Assistant
 ============================
 Main entry point for the application.
-
-A JARVIS-inspired AI desktop assistant with Batman/Alfred theme.
-Features:
-- Voice activation (Winter Soldier Protocol)
-- Bilingual support (English/Turkish)
-- System control
-- Media control
-- Computer vision
-- Natural conversation
-
-Author: [Your Name]
-Project: Final Year Computer Engineering
 """
 
 import sys
 import os
 from pathlib import Path
 
-# Add project root to path
-PROJECT_ROOT = Path(__file__).parent
-sys.path.insert(0, str(PROJECT_ROOT))
+# High DPI MUST be set before QApplication import
+os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
 
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtGui import QIcon
+
+# Add project root to path
+PROJECT_ROOT = Path(__file__).parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from config.settings import Settings
 from config.personas import Personas
@@ -83,6 +74,9 @@ class AlfredX:
         
         # Command parser
         self.command_parser = CommandParser()
+        
+        # Listening state
+        self._is_listening = False
     
     def _init_skills(self):
         """Initialize skill modules."""
@@ -136,14 +130,18 @@ class AlfredX:
         """Process a command (voice or text)."""
         dashboard = self.window.get_dashboard()
         
+        print(f"📝 Processing: {text}")
+        
         # Parse command
         self.command_parser.set_language(self.current_language)
         parsed = self.command_parser.parse(text)
         
-        print(f"📝 Intent: {parsed.intent}, Target: {parsed.target}")
+        print(f"   Intent: {parsed.intent}, Target: {parsed.target}")
         
         # Execute based on intent
         response = self._execute_intent(parsed)
+        
+        print(f"   Response: {response[:50]}...")
         
         # Respond
         dashboard.add_alfred_message(response)
@@ -159,117 +157,124 @@ class AlfredX:
         target = parsed.target
         value = parsed.value
         
-        # System control intents
-        if intent == "open_app":
-            if target:
-                success, msg = self.system_control.open_app(target)
+        try:
+            # System control intents
+            if intent == "open_app":
+                if target:
+                    success, msg = self.system_control.open_app(target)
+                    if success:
+                        return Personas.get_acknowledgment(self.current_language) + f" {msg}."
+                    return Personas.get_error(self.current_language) + f" {msg}."
+                return self._ask_for_target("open", self.current_language)
+            
+            elif intent == "close_app":
+                if target:
+                    success, msg = self.system_control.close_app(target)
+                    return msg
+                return self._ask_for_target("close", self.current_language)
+            
+            elif intent == "screenshot":
+                success, msg = self.system_control.take_screenshot()
                 if success:
-                    return Personas.get_acknowledgment(self.current_language) + f" {msg}."
-                return Personas.get_error(self.current_language) + f" {msg}."
-            return self._ask_for_target("open", self.current_language)
-        
-        elif intent == "close_app":
-            if target:
-                success, msg = self.system_control.close_app(target)
+                    return f"Screenshot saved to {msg}"
                 return msg
-            return self._ask_for_target("close", self.current_language)
-        
-        elif intent == "screenshot":
-            success, msg = self.system_control.take_screenshot()
-            if success:
-                return f"Screenshot saved to {msg}"
-            return msg
-        
-        elif intent == "time":
-            time_str = self.system_control.get_time()
-            if self.current_language == "tr":
-                return f"Saat {time_str}"
-            return f"The time is {time_str}, sir."
-        
-        elif intent == "date":
-            date_str = self.system_control.get_date()
-            if self.current_language == "tr":
-                return f"Bugün {date_str}"
-            return f"Today is {date_str}, sir."
-        
-        elif intent == "system_info":
-            info = self.system_control.get_system_info()
-            if self.current_language == "tr":
-                return (f"CPU: {info['cpu']['percent']}%, "
-                       f"RAM: {info['memory']['percent']}%, "
-                       f"Disk: {info['disk']['percent']}%")
-            return (f"System status, sir: CPU at {info['cpu']['percent']}%, "
-                   f"Memory at {info['memory']['percent']}%, "
-                   f"Disk at {info['disk']['percent']}%.")
-        
-        # Media control intents
-        elif intent == "volume_up":
-            success, msg = self.media_control.volume_up()
-            return msg
-        
-        elif intent == "volume_down":
-            success, msg = self.media_control.volume_down()
-            return msg
-        
-        elif intent == "volume_set":
-            if value:
-                success, msg = self.media_control.set_volume(value)
+            
+            elif intent == "time":
+                time_str = self.system_control.get_time()
+                if self.current_language == "tr":
+                    return f"Saat {time_str}"
+                return f"The time is {time_str}, sir."
+            
+            elif intent == "date":
+                date_str = self.system_control.get_date()
+                if self.current_language == "tr":
+                    return f"Bugün {date_str}"
+                return f"Today is {date_str}, sir."
+            
+            elif intent == "system_info":
+                info = self.system_control.get_system_info()
+                if 'error' in info:
+                    return f"System info error: {info['error']}"
+                if self.current_language == "tr":
+                    return (f"CPU: {info['cpu']['percent']}%, "
+                           f"RAM: {info['memory']['percent']}%, "
+                           f"Disk: {info['disk']['percent']}%")
+                return (f"System status, sir: CPU at {info['cpu']['percent']}%, "
+                       f"Memory at {info['memory']['percent']}%, "
+                       f"Disk at {info['disk']['percent']}%.")
+            
+            # Media control intents
+            elif intent == "volume_up":
+                success, msg = self.media_control.volume_up()
                 return msg
-            return "What volume level would you like, sir?"
-        
-        elif intent == "mute":
-            success, msg = self.media_control.mute()
-            return msg
-        
-        elif intent == "unmute":
-            success, msg = self.media_control.unmute()
-            return msg
-        
-        elif intent == "play_media":
-            success, msg = self.media_control.play_pause()
-            return msg
-        
-        elif intent == "pause_media":
-            success, msg = self.media_control.play_pause()
-            return msg
-        
-        elif intent == "next_track":
-            success, msg = self.media_control.next_track()
-            return msg
-        
-        elif intent == "previous_track":
-            success, msg = self.media_control.previous_track()
-            return msg
-        
-        # Greeting/Goodbye
-        elif intent == "greeting":
-            return Personas.get_greeting(self.current_language)
-        
-        elif intent == "goodbye":
-            return Personas.get_goodbye(self.current_language)
-        
-        elif intent == "thanks":
-            if self.current_language == "tr":
-                return "Rica ederim!"
-            return "You're most welcome, sir."
-        
-        # Help
-        elif intent == "help":
-            return self._get_help_text()
-        
-        # Language switch
-        elif intent == "switch_language":
-            if "turkish" in parsed.original_text.lower() or "türkçe" in parsed.original_text.lower():
-                self._switch_language("tr")
-                return "Tabii, Türkçe konuşabilirim. Nasıl yardımcı olabilirim?"
-            else:
-                self._switch_language("en")
-                return "Certainly, sir. I shall speak in English. How may I assist you?"
-        
-        # Default: use AI for conversation
-        elif intent == "conversation":
-            self.brain.set_language(self.current_language)
-            return self.brain.think(parsed.original_text)
+            
+            elif intent == "volume_down":
+                success, msg = self.media_control.volume_down()
+                return msg
+            
+            elif intent == "volume_set":
+                if value:
+                    success, msg = self.media_control.set_volume(value)
+                    return msg
+                return "What volume level would you like, sir?"
+            
+            elif intent == "mute":
+                success, msg = self.media_control.mute()
+                return msg
+            
+            elif intent == "unmute":
+                success, msg = self.media_control.unmute()
+                return msg
+            
+            elif intent == "play_media":
+                success, msg = self.media_control.play_pause()
+                return msg
+            
+            elif intent == "pause_media":
+                success, msg = self.media_control.play_pause()
+                return msg
+            
+            elif intent == "next_track":
+                success, msg = self.media_control.next_track()
+                return msg
+            
+            elif intent == "previous_track":
+                success, msg = self.media_control.previous_track()
+                return msg
+            
+            # Greeting/Goodbye
+            elif intent == "greeting":
+                return Personas.get_greeting(self.current_language)
+            
+            elif intent == "goodbye":
+                return Personas.get_goodbye(self.current_language)
+            
+            elif intent == "thanks":
+                if self.current_language == "tr":
+                    return "Rica ederim!"
+                return "You're most welcome, sir."
+            
+            # Help
+            elif intent == "help":
+                return self._get_help_text()
+            
+            # Language switch
+            elif intent == "switch_language":
+                if "turkish" in parsed.original_text.lower() or "türkçe" in parsed.original_text.lower():
+                    self._switch_language("tr")
+                    return "Tabii, Türkçe konuşabilirim. Nasıl yardımcı olabilirim?"
+                else:
+                    self._switch_language("en")
+                    return "Certainly, sir. I shall speak in English. How may I assist you?"
+            
+            # Default: use AI for conversation
+            elif intent == "conversation":
+                self.brain.set_language(self.current_language)
+                return self.brain.think(parsed.original_text)
+            
+        except Exception as e:
+            print(f"❌ Error executing intent: {e}")
+            return Personas.get_error(self.current_language)
         
         return Personas.get_not_understood(self.current_language)
     
@@ -301,14 +306,16 @@ class AlfredX:
     
     def _toggle_listening(self):
         """Toggle voice listening."""
-        if self.listener.is_listening:
-            self.listener.stop_listening()
-            self.window.get_dashboard().set_listening(False)
-            print("🎤 Stopped listening")
-        else:
+        self._is_listening = not self._is_listening
+        
+        if self._is_listening:
             self.listener.start_listening()
             self.window.get_dashboard().set_listening(True)
             print("🎤 Started listening")
+        else:
+            self.listener.stop_listening()
+            self.window.get_dashboard().set_listening(False)
+            print("🎤 Stopped listening")
     
     def run(self):
         """Run the application."""
@@ -317,7 +324,8 @@ class AlfredX:
     def cleanup(self):
         """Cleanup resources."""
         print("🦇 Shutting down AlfredX...")
-        self.listener.stop_listening()
+        if self._is_listening:
+            self.listener.stop_listening()
         self.speaker.cleanup()
 
 
@@ -327,10 +335,6 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("AlfredX")
     app.setOrganizationName("Waynecore")
-    
-    # High DPI support
-    app.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-    app.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
     
     # Create and run AlfredX
     alfred = AlfredX()

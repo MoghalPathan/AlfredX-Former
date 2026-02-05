@@ -98,9 +98,12 @@ class HUDPanel(QFrame):
             }}
         """)
     
-    def addWidget(self, widget: QWidget):
+    def addWidget(self, widget: QWidget, alignment=None):
         """Add a widget to the panel content area."""
-        self._content_layout.addWidget(widget)
+        if alignment is not None:
+            self._content_layout.addWidget(widget, alignment=alignment)
+        else:
+            self._content_layout.addWidget(widget)
     
     def addLayout(self, layout):
         """Add a layout to the panel content area."""
@@ -186,38 +189,3 @@ class AlertPanel(HUDPanel):
     def __init__(self, parent=None, title: str = "ALERT"):
         super().__init__(parent, title=title, accent_color=JarvisTheme.ORANGE)
         self.startPulse()
-
-
-# Test the widget
-if __name__ == "__main__":
-    import sys
-    from PyQt5.QtWidgets import QApplication, QHBoxLayout, QPushButton
-    
-    app = QApplication(sys.argv)
-    
-    window = QWidget()
-    window.setStyleSheet(f"background-color: {JarvisTheme.DARK};")
-    window.setWindowTitle("HUD Panel Test")
-    window.setMinimumSize(600, 400)
-    
-    layout = QHBoxLayout(window)
-    
-    # Test panels
-    panel1 = HUDPanel(title="SYSTEM STATUS")
-    panel1.addWidget(QLabel("CPU: 45%"))
-    panel1.addWidget(QLabel("RAM: 62%"))
-    panel1.addWidget(QLabel("DISK: 78%"))
-    
-    panel2 = StatusPanel(title="NETWORK")
-    panel2.addWidget(QLabel("Connected"))
-    panel2.addWidget(QLabel("Speed: 100 Mbps"))
-    
-    panel3 = AlertPanel(title="WARNINGS")
-    panel3.addWidget(QLabel("High memory usage"))
-    
-    layout.addWidget(panel1)
-    layout.addWidget(panel2)
-    layout.addWidget(panel3)
-    
-    window.show()
-    sys.exit(app.exec_())
